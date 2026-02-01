@@ -12,6 +12,7 @@ public record IndividualBankStatement
         public float Amount { get; init; }
     }
 
+    public string CustomerName { get; init; }
     public string BankName { get; init; }
     public string BankAddress { get; init; }
     public string BankPhone { get; init; }
@@ -25,7 +26,10 @@ public record IndividualBankStatement
     public float BeginningBalance { get; init; }
     public List<Transaction> Transactions { get; init; } = [];
 
-    private static string E(string? s) => WebUtility.HtmlEncode(s ?? string.Empty); // added
+    private static string E(string s)
+    {
+        return WebUtility.HtmlEncode(s);
+    }
 
     public string Render()
     {
@@ -80,6 +84,7 @@ font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-seri
         return $@"{styles}
 <div class=""bank-statement"">
   <h2>{E(BankName)}</h2>
+  <div class=""meta"">Customer: {E(CustomerName)}</div>
   <div class=""meta"">{E(BankAddress)} • {E(BankPhone)} • {E(BankWebsite)}</div>
   <div class=""meta"">
     Statement Period: {StatementPeriodStart.ToString("dd-MMM-yyyy", System.Globalization.CultureInfo.InvariantCulture).ToLowerInvariant()}
@@ -120,6 +125,7 @@ font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-seri
     {
         return new IndividualBankStatement
         {
+            CustomerName = "John Doe",
             BankName = "Sample Bank",
             BankAddress = "123 Finance St, Money City, Country",
             BankPhone = "+1-800-555-1234",
