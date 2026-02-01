@@ -132,7 +132,7 @@ public partial class BrowserDisplay(int port_)
 
     private string GetResource(string resource)
     {
-        return IndividualBankStatement.Example().Render();
+        return FirmSheet.Example().Render();
     }
 
     public void Stop()
