@@ -1,0 +1,131 @@
+[gd_scene format=3 uid="uid://cw1i7380rnspl"]
+
+[node name="BankStatement" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+offset_right = 1024
+offset_bottom = 768
+
+[node name="Margin" type="MarginContainer" parent="."]
+anchors_preset = 15
+margin_left = 24
+margin_top = 24
+margin_right = -24
+margin_bottom = -24
+
+[node name="RootVBox" type="VBoxContainer" parent="Margin"]
+theme_override_constants/separation = 12
+
+
+[node name="Header" type="VBoxContainer" parent="Margin/RootVBox"]
+theme_override_constants/separation = 4
+
+[node name="BankName" type="Label" parent="Margin/RootVBox/Header"]
+text = "BANK NAME PLACEHOLDER"
+theme_override_font_sizes/font_size = 24
+
+[node name="BankAddress" type="Label" parent="Margin/RootVBox/Header"]
+text = "Bank Address • Phone • Website"
+
+[node name="StatementMeta" type="HBoxContainer" parent="Margin/RootVBox/Header"]
+theme_override_constants/separation = 32
+
+[node name="StatementPeriod" type="Label" parent="Margin/RootVBox/Header/StatementMeta"]
+text = "Statement Period: 01 Jan 2026 – 31 Jan 2026"
+
+[node name="StatementDate" type="Label" parent="Margin/RootVBox/Header/StatementMeta"]
+text = "Statement Date: 01 Feb 2026"
+
+
+[node name="AccountInfo" type="HBoxContainer" parent="Margin/RootVBox"]
+theme_override_constants/separation = 32
+
+[node name="AccountType" type="Label" parent="Margin/RootVBox/AccountInfo"]
+text = "Account Type: Checking"
+
+[node name="AccountNumber" type="Label" parent="Margin/RootVBox/AccountInfo"]
+text = "Account Number: •••• 1234"
+
+[node name="Currency" type="Label" parent="Margin/RootVBox/AccountInfo"]
+text = "Currency: USD"
+
+
+[node name="Summary" type="HBoxContainer" parent="Margin/RootVBox"]
+theme_override_constants/separation = 48
+
+[node name="BeginningBalance" type="Label" parent="Margin/RootVBox/Summary"]
+text = "Beginning Balance: $12,345.67"
+
+[node name="TotalCredits" type="Label" parent="Margin/RootVBox/Summary"]
+text = "Credits: +$4,000.00"
+
+[node name="TotalDebits" type="Label" parent="Margin/RootVBox/Summary"]
+text = "Debits: -$2,345.67"
+
+[node name="EndingBalance" type="Label" parent="Margin/RootVBox/Summary"]
+text = "Ending Balance: $14,000.00"
+
+
+[node name="Transactions" type="VBoxContainer" parent="Margin/RootVBox"]
+theme_override_constants/separation = 6
+
+[node name="TableHeader" type="HBoxContainer" parent="Margin/RootVBox/Transactions"]
+theme_override_constants/separation = 16
+
+[node name="HeaderDate" type="Label" parent="Margin/RootVBox/Transactions/TableHeader"]
+text = "Date"
+
+[node name="HeaderDescription" type="Label" parent="Margin/RootVBox/Transactions/TableHeader"]
+text = "Description"
+size_flags_horizontal = 3
+
+[node name="HeaderAmount" type="Label" parent="Margin/RootVBox/Transactions/TableHeader"]
+text = "Amount"
+
+[node name="HeaderBalance" type="Label" parent="Margin/RootVBox/Transactions/TableHeader"]
+text = "Balance"
+
+[node name="Separator" type="HSeparator" parent="Margin/RootVBox/Transactions"]
+
+
+[node name="TransactionRow_01" type="HBoxContainer" parent="Margin/RootVBox/Transactions"]
+theme_override_constants/separation = 16
+
+[node name="Date" type="Label" parent="Margin/RootVBox/Transactions/TransactionRow_01"]
+text = "05 Jan 2026"
+
+[node name="Description" type="Label" parent="Margin/RootVBox/Transactions/TransactionRow_01"]
+text = "POS PURCHASE – PLACEHOLDER STORE"
+size_flags_horizontal = 3
+
+[node name="Amount" type="Label" parent="Margin/RootVBox/Transactions/TransactionRow_01"]
+text = "-45.67"
+
+[node name="Balance" type="Label" parent="Margin/RootVBox/Transactions/TransactionRow_01"]
+text = "12,300.00"
+
+[node name="TransactionRow_02" type="HBoxContainer" parent="Margin/RootVBox/Transactions"]
+theme_override_constants/separation = 16
+
+[node name="Date" type="Label" parent="Margin/RootVBox/Transactions/TransactionRow_02"]
+text = "07 Jan 2026"
+
+[node name="Description" type="Label" parent="Margin/RootVBox/Transactions/TransactionRow_02"]
+text = "ACH CREDIT – PLACEHOLDER EMPLOYER"
+size_flags_horizontal = 3
+
+[node name="Amount" type="Label" parent="Margin/RootVBox/Transactions/TransactionRow_02"]
+text = "+2,000.00"
+
+[node name="Balance" type="Label" parent="Margin/RootVBox/Transactions/TransactionRow_02"]
+text = "14,300.00"
+
+
+[node name="Footer" type="VBoxContainer" parent="Margin/RootVBox"]
+theme_override_constants/separation = 4
+
+[node name="Disclaimer" type="Label" parent="Margin/RootVBox/Footer"]
+text = "This statement is provided for informational purposes only."
+
+[node name="PageInfo" type="Label" parent="Margin/RootVBox/Footer"]
+text = "Page 1 of 1"
