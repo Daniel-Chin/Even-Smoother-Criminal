@@ -11,9 +11,17 @@ config_version=5
 [application]
 
 config/name="slick"
-run/main_scene="uid://bilcw4whx1630"
+run/main_scene="uid://dkauk4rb0lklg"
 config/features=PackedStringArray("4.6", "C#", "Forward Plus")
 config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=3
+window/size/resizable=false
+window/size/borderless=true
 
 [dotnet]
 
