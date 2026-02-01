@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Net;
 using System.Globalization;
 
 public record BankStatement: TransactionDoc
@@ -34,18 +33,13 @@ public record BankStatement: TransactionDoc
 
 	private const decimal DisplayUnitDivisor = 1000m;
 
-	private static string E(string s)
-	{
-		return WebUtility.HtmlEncode(s);
-	}
-
 	private static string Money(decimal v)
 	{
 		var abs = Math.Abs(v).ToString("N2", CultureInfo.InvariantCulture);
 		return v < 0 ? $"({abs})" : abs;
 	}
 
-	public string Render()
+	public override string Render()
 	{
 		decimal credits = 0m;
 		decimal debits = 0m;

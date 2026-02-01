@@ -4,38 +4,92 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Godot 4.6 game using C# (.NET 8.0) that simulates financial document viewing. The game runs a local HTTP server to render financial statements (bank statements, firm sheets) in a browser.
+A Godot 4.6 game using C# (.NET 8.0) simulating financial activities and paper trails. The player is a financial fixer who investigates money trails or orchestrates money laundering.
+
+**Core concept:** Turn-based simulation where entities conduct financial activities each month. Two versions of financial data exist:
+- **Ground truth:** Actual balances attached to entities
+- **Paper trail:** Transaction documents that may not be truthful (e.g., discrepancies between months)
 
 ## Build Commands
 
 ```bash
-# Build the C# project
 dotnet build slick.csproj
-
-# Run from Godot Editor (or command line)
-# The project opens in fullscreen borderless mode (1920x1080)
 ```
+
+Run from Godot Editor. Opens in fullscreen borderless mode (1920x1080).
 
 ## Architecture
 
-### Domain Model (C# Records)
-- `Entity` - Base record with Id, Name, Balance
-- `Individual` - Person entity with Job property
-- `Firm` - Company with Employees list and CEO
-- `TransactionLine` - Single transaction with Date, Description, Amount
-- `TransactionDoc` - Base for documents containing transaction lists
-- `BankStatement` - Individual's bank statement (extends TransactionDoc)
-- `FirmSheet` - Company financial statement with HTML rendering capability
+### Entity Hierarchy (C# Records, ID-based references)
+
+```
+Entity (Id, Name, Balance)
+├── Individual (Job, EmployerId)
+└── Firm (CeoId, EmployeeIds)
+    └── Bank (Address, Phone, Website)
+```
+
+Relationships use string IDs for serialization safety:
+- `Individual.EmployerId` → references `Firm.Id` (null if unemployed)
+- `Firm.CeoId` → references `Individual.Id`
+- `Firm.EmployeeIds` → list of `Individual.Id`
+
+### Transaction Documents
+
+```
+TransactionDoc (Id, Date, Transactions)
+├── BankStatement (AttatchedIndividual, AttatchedBank, AccountNumber, BeginningBalance)
+└── FirmSheet (AttatchedFirm, BeginningAssets)
+```
+
+- `TransactionLine`: Date, Description, Amount, Id
+
+### World State (`World.cs`)
+
+Holds all simulation state:
+- `CurrentMonth` (DateOnly)
+- `Individuals` (List)
+- `Firms` (List, includes Banks)
+- `Documents` (List, paper trail)
+
+**Initialization:**
+```csharp
+world.Initialize(
+    startMonth: new DateOnly(2026, 1, 1),
+    numIndividuals: 50,
+    numFirms: 5,
+    numBanks: 2,
+    minEmployeesPerFirm: 2,
+    maxEmployeesPerFirm: 10,
+    seed: 42);  // optional, for reproducibility
+```
+
+**Lookup helpers:** `GetIndividual(id)`, `GetFirm(id)`, `GetBank(id)`, `GetBanks()`, `GetNonBankFirms()`
+
+Employment assignment distributes individuals evenly across firms when there aren't enough to fill all slots.
 
 ### Browser Display System
-`BrowserDisplay` runs a lightweight TCP server (ports 8000-8100) that:
-1. Listens for HTTP requests on localhost
-2. Renders `FirmSheet` documents as HTML
-3. Opens the system browser via `OS.ShellOpen()`
 
-Entry point: `Main.cs` creates a BrowserDisplay and opens `example.html`.
+`BrowserDisplay` runs a TCP server on localhost (ports 8000-8100) to render HTML in browser.
 
-### Conventions
-- Domain objects use C# records with `Example()` factory methods for test data
-- Amounts are stored as integers, displayed divided by 1000 (thousands)
-- HTML output uses inline CSS with a clean financial document style
+```csharp
+var browser = BrowserDisplay.AnyAvailable();
+browser.SetContent(() => world.Render());  // Pass any object with Render()
+browser.OpenBrowser("");
+```
+
+### Render Methods
+
+All entities and documents have `Render()` methods returning HTML:
+- `Entity`, `Individual`, `Firm`, `Bank` - simple attribute display
+- `TransactionLine`, `TransactionDoc` - basic rendering
+- `BankStatement`, `FirmSheet` - styled financial document output
+- `World.Render()` - debug view showing all state
+
+## Conventions
+
+- Records use `Example()` factory methods for test data
+- Amounts stored as integers (cents), displayed divided by 1000
+- ID format: `IND-0001`, `FIRM-0001`, `BANK-0001`
+- Use `with` keyword to create modified copies of records
+- When iterating and modifying collections, use `.ToList()` to avoid enumeration errors

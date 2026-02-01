@@ -13,15 +13,16 @@ public partial class Debug : Node
 		var individual = new Individual
 		{
 			Id = "indiv-001",
-			Job = "Software Developer"
+			Job = "Software Developer",
+			EmployerId = "firm-001"
 		};
 
 		// Set up a firm with the individual as CEO
 		var firm = new Firm
 		{
 			Id = "firm-001",
-			CEO = individual,
-			Employees = new System.Collections.Generic.List<Individual> { individual }
+			CeoId = "indiv-001",
+			EmployeeIds = new System.Collections.Generic.List<string> { "indiv-001" }
 		};
 
 		// Set up a transaction line

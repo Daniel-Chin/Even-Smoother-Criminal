@@ -14,6 +14,12 @@ public class BrowserDisplay(int port_)
     private Thread _thread;
     private volatile bool _stopRequested;
     private volatile bool _listening;
+    private Func<string> _contentProvider;
+
+    public void SetContent(Func<string> provider)
+    {
+        _contentProvider = provider;
+    }
 
     public Error Start()
     {
@@ -132,8 +138,9 @@ public class BrowserDisplay(int port_)
 
     private string GetResource(string resource)
     {
-        // return FirmSheet.Example().Render();
-        return BankStatement.Example().Render();
+        if (_contentProvider != null)
+            return _contentProvider();
+        return "<html><body>No content set</body></html>";
     }
 
     public void Stop()

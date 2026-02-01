@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Net;
 using System.Globalization;
 
 public record FirmSheet: TransactionDoc
@@ -25,22 +24,16 @@ public record FirmSheet: TransactionDoc
 		};
 	}
 
-	
-    private const decimal DisplayUnitDivisor = 1000m;
-	private static string E(string s)
-    {
-        return WebUtility.HtmlEncode(s);
-    }
+	private const decimal DisplayUnitDivisor = 1000m;
 
-	
-    private static string Money(decimal v)
+	private static string Money(decimal v)
     {
         // Strict: 2 decimals, parentheses for negatives, no currency symbol.
         var abs = Math.Abs(v).ToString("N2", CultureInfo.InvariantCulture);
         return v < 0 ? $"({abs})" : abs;
     }
 
-	public string Render()
+	public override string Render()
     {
         var firm = E(AttatchedFirm?.Name ?? "");
 		var periodStart = Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

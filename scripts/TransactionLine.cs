@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.Net;
 
 public record TransactionLine
 {
@@ -7,6 +9,7 @@ public record TransactionLine
 	public int Amount { get; init; }
 	public string Id { get; init; }
 
+	private static string E(string s) => WebUtility.HtmlEncode(s ?? "");
 
 	public static TransactionLine Example()
 	{
@@ -17,5 +20,15 @@ public record TransactionLine
 			Amount = 2500,
 			Id = "TXN-1001"
 		};
+	}
+
+	public string Render()
+	{
+		return $@"<div class=""transaction-line"">
+  <div><strong>ID:</strong> {E(Id)}</div>
+  <div><strong>Date:</strong> {Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}</div>
+  <div><strong>Description:</strong> {E(Description)}</div>
+  <div><strong>Amount:</strong> {Amount}</div>
+</div>";
 	}
 }
