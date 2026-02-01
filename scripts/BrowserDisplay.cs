@@ -15,10 +15,18 @@ public class BrowserDisplay(int port_)
     private volatile bool _stopRequested;
     private volatile bool _listening;
     private Func<string> _contentProvider;
+    private Func<string, string> _router;
 
     public void SetContent(Func<string> provider)
     {
         _contentProvider = provider;
+        _router = null;
+    }
+
+    public void SetRouter(Func<string, string> router)
+    {
+        _router = router;
+        _contentProvider = null;
     }
 
     public Error Start()
@@ -97,30 +105,42 @@ public class BrowserDisplay(int port_)
 
     private void HandleClient(TcpClient client)
     {
-        client.ReceiveTimeout = 500;
-        client.SendTimeout = 500;
+        client.ReceiveTimeout = 2000;
+        client.SendTimeout = 2000;
 
         using var stream = client.GetStream();
 
-        // Read request headers (ignored). Cap to avoid unbounded reads.
+        // Read request - wait for data to be available
         var buffer = new byte[8192];
+        int bytesRead = 0;
         try
         {
-            if (stream.DataAvailable)
-                stream.Read(buffer, 0, buffer.Length);
+            bytesRead = stream.Read(buffer, 0, buffer.Length);
         }
         catch
         {
             // Ignore malformed/slow clients.
+            return;
         }
 
-        string requestLine = Encoding.UTF8.GetString(buffer).Split("\r\n")[0];
+        if (bytesRead == 0) return;
+
+        string requestLine = Encoding.UTF8.GetString(buffer, 0, bytesRead).Split("\r\n")[0];
         string resource = "/";
         {
             var parts = requestLine.Split(' ');
             if (parts.Length >= 2)
                 resource = parts[1].TrimStart('/');
         }
+
+        // Skip favicon requests
+        if (resource == "favicon.ico")
+        {
+            var notFound = Encoding.UTF8.GetBytes("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            stream.Write(notFound, 0, notFound.Length);
+            return;
+        }
+
         string body = GetResource(resource);
         byte[] bodyBytes = Encoding.UTF8.GetBytes(body);
 
@@ -138,6 +158,8 @@ public class BrowserDisplay(int port_)
 
     private string GetResource(string resource)
     {
+        if (_router != null)
+            return _router(resource);
         if (_contentProvider != null)
             return _contentProvider();
         return "<html><body>No content set</body></html>";

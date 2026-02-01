@@ -2,6 +2,7 @@ public record Individual: Entity
 {
 	public string Job { get; init; }
 	public string EmployerId { get; init; }  // null if unemployed
+	public string BankId { get; init; }      // bank where this individual has their account
 
 	public static Individual Example()
 	{
@@ -10,6 +11,7 @@ public record Individual: Entity
 			Id = "IND-001",
 			Name = "Hanz von Salthole",
 			Job = "Submarine Captain",
+			BankId = "BANK-001",
 		};
 	}
 
@@ -20,6 +22,7 @@ public record Individual: Entity
   <div><strong>Name:</strong> {E(Name)}</div>
   <div><strong>Balance:</strong> {Balance}</div>
   <div><strong>Job:</strong> {E(Job)}</div>
+  <div><strong>Bank ID:</strong> {E(BankId)}</div>
 </div>";
 	}
 }

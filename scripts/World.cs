@@ -13,11 +13,13 @@ public partial class World : Node
 	public List<Individual> Individuals { get; private set; } = new();
 	public List<Firm> Firms { get; private set; } = new();  // includes Banks
 	public List<TransactionDoc> Documents { get; private set; } = new();
+	public List<GroundTruthTransaction> Transactions { get; private set; } = new();  // ground truth history
 
 	// Counters for ID generation
 	private int _nextIndividualId = 1;
 	private int _nextFirmId = 1;
 	private int _nextBankId = 1;
+	private int _nextTransactionId = 1;
 
 	// Random for generation
 	private Random _random;
@@ -53,6 +55,7 @@ public partial class World : Node
 		Individuals.Clear();
 		Firms.Clear();
 		Documents.Clear();
+		Transactions.Clear();
 
 		// Generate individuals
 		for (int i = 0; i < numIndividuals; i++)
@@ -74,6 +77,23 @@ public partial class World : Node
 
 		// Set up employment relationships
 		AssignEmployment();
+
+		// Assign bank accounts to individuals
+		AssignBankAccounts();
+	}
+
+	private void AssignBankAccounts()
+	{
+		var banks = GetBanks().ToList();
+		if (banks.Count == 0) return;
+
+		// Distribute individuals across banks roughly evenly
+		for (int i = 0; i < Individuals.Count; i++)
+		{
+			var ind = Individuals[i];
+			var bank = banks[_random.Next(banks.Count)];
+			ReplaceIndividual(ind.Id, ind with { BankId = bank.Id });
+		}
 	}
 
 	private Individual GenerateIndividual()
@@ -201,6 +221,407 @@ public partial class World : Node
 	public Bank GetBank(string id) => Firms.OfType<Bank>().FirstOrDefault(b => b.Id == id);
 	public IEnumerable<Bank> GetBanks() => Firms.OfType<Bank>();
 	public IEnumerable<Firm> GetNonBankFirms() => Firms.Where(f => f is not Bank);
+	public Entity GetEntity(string id) => (Entity)GetIndividual(id) ?? GetFirm(id);
+
+	// Transaction queries
+	public IEnumerable<GroundTruthTransaction> QueryTransactions(
+		string entityId = null,
+		int? year = null,
+		int? month = null,
+		TransactionPurpose? purpose = null)
+	{
+		IEnumerable<GroundTruthTransaction> result = Transactions;
+
+		if (entityId != null)
+			result = result.Where(t => t.FromEntityId == entityId || t.ToEntityId == entityId);
+
+		if (year.HasValue)
+			result = result.Where(t => t.Date.Year == year.Value);
+
+		if (month.HasValue)
+			result = result.Where(t => t.Date.Month == month.Value);
+
+		if (purpose.HasValue)
+			result = result.Where(t => t.Purpose == purpose.Value);
+
+		return result.OrderBy(t => t.Date);
+	}
+
+	public IEnumerable<GroundTruthTransaction> GetTransactionsForEntity(string entityId)
+		=> QueryTransactions(entityId: entityId);
+
+	public IEnumerable<GroundTruthTransaction> GetTransactionsForMonth(int year, int month)
+		=> QueryTransactions(year: year, month: month);
+
+	// Document queries
+	public IEnumerable<BankStatement> QueryBankStatements(
+		string individualId = null,
+		string bankId = null,
+		int? year = null,
+		int? month = null)
+	{
+		IEnumerable<BankStatement> result = Documents.OfType<BankStatement>();
+
+		if (individualId != null)
+			result = result.Where(s => s.AttatchedIndividual?.Id == individualId);
+
+		if (bankId != null)
+			result = result.Where(s => s.AttatchedBank?.Id == bankId);
+
+		if (year.HasValue)
+			result = result.Where(s => s.Date.Year == year.Value);
+
+		if (month.HasValue)
+			result = result.Where(s => s.Date.Month == month.Value);
+
+		return result.OrderBy(s => s.Date);
+	}
+
+	public IEnumerable<FirmSheet> QueryFirmSheets(
+		string firmId = null,
+		int? year = null,
+		int? month = null)
+	{
+		IEnumerable<FirmSheet> result = Documents.OfType<FirmSheet>();
+
+		if (firmId != null)
+			result = result.Where(s => s.AttatchedFirm?.Id == firmId);
+
+		if (year.HasValue)
+			result = result.Where(s => s.Date.Year == year.Value);
+
+		if (month.HasValue)
+			result = result.Where(s => s.Date.Month == month.Value);
+
+		return result.OrderBy(s => s.Date);
+	}
+
+	public BankStatement GetBankStatement(string individualId, int year, int month)
+		=> QueryBankStatements(individualId: individualId, year: year, month: month).FirstOrDefault();
+
+	public FirmSheet GetFirmSheet(string firmId, int year, int month)
+		=> QueryFirmSheets(firmId: firmId, year: year, month: month).FirstOrDefault();
+
+	// Transaction recording
+	public GroundTruthTransaction RecordTransaction(
+		string fromEntityId,
+		string toEntityId,
+		int amount,
+		TransactionPurpose purpose,
+		string description,
+		DateOnly? date = null)
+	{
+		var txDate = date ?? CurrentMonth;
+		var tx = new GroundTruthTransaction
+		{
+			Id = $"TX-{_nextTransactionId++:D6}",
+			Date = txDate,
+			FromEntityId = fromEntityId,
+			ToEntityId = toEntityId,
+			Amount = amount,
+			Purpose = purpose,
+			Description = description,
+		};
+		Transactions.Add(tx);
+
+		// Update balances (ground truth)
+		if (fromEntityId != null)
+		{
+			var fromInd = GetIndividual(fromEntityId);
+			if (fromInd != null)
+				ReplaceIndividual(fromEntityId, fromInd with { Balance = fromInd.Balance - amount });
+			else
+			{
+				var fromFirm = GetFirm(fromEntityId);
+				if (fromFirm != null)
+					ReplaceFirm(fromEntityId, fromFirm with { Balance = fromFirm.Balance - amount });
+			}
+		}
+
+		if (toEntityId != null)
+		{
+			var toInd = GetIndividual(toEntityId);
+			if (toInd != null)
+				ReplaceIndividual(toEntityId, toInd with { Balance = toInd.Balance + amount });
+			else
+			{
+				var toFirm = GetFirm(toEntityId);
+				if (toFirm != null)
+					ReplaceFirm(toEntityId, toFirm with { Balance = toFirm.Balance + amount });
+			}
+		}
+
+		return tx;
+	}
+
+	// Monthly simulation
+	public void AdvanceMonth()
+	{
+		CurrentMonth = CurrentMonth.AddMonths(1);
+		GD.Print($"Advancing to {CurrentMonth:yyyy-MM}");
+
+		ProcessPayroll();
+		ProcessFirmTransactions();
+		ProcessIndividualTransactions();
+		GenerateMonthlyDocuments();
+	}
+
+	private void ProcessPayroll()
+	{
+		foreach (var firm in Firms.ToList())
+		{
+			foreach (var empId in firm.EmployeeIds ?? new List<string>())
+			{
+				var emp = GetIndividual(empId);
+				if (emp == null) continue;
+
+				// Salary based on job (CEO gets more)
+				int salary = emp.Job == "CEO" ? _random.Next(8000, 15000) * 100 : _random.Next(3000, 8000) * 100;
+
+				RecordTransaction(
+					firm.Id,
+					emp.Id,
+					salary,
+					TransactionPurpose.Salary,
+					$"Salary payment to {emp.Name}",
+					CurrentMonth);
+			}
+		}
+	}
+
+	private void ProcessFirmTransactions()
+	{
+		foreach (var firm in Firms.ToList())
+		{
+			// Operating expenses (1-5 per firm)
+			int numExpenses = _random.Next(1, 6);
+			for (int i = 0; i < numExpenses; i++)
+			{
+				int amount = _random.Next(1000, 50000) * 100;
+				RecordTransaction(
+					firm.Id,
+					null,  // external party
+					amount,
+					TransactionPurpose.OperatingExpense,
+					GenerateExpenseDescription(),
+					RandomDateInMonth());
+			}
+
+			// Revenue from external (1-3 per firm)
+			int numRevenue = _random.Next(1, 4);
+			for (int i = 0; i < numRevenue; i++)
+			{
+				int amount = _random.Next(5000, 200000) * 100;
+				RecordTransaction(
+					null,  // external party
+					firm.Id,
+					amount,
+					TransactionPurpose.Revenue,
+					GenerateRevenueDescription(),
+					RandomDateInMonth());
+			}
+
+			// Occasional firm-to-firm transaction (20% chance)
+			if (_random.NextDouble() < 0.2)
+			{
+				var otherFirms = Firms.Where(f => f.Id != firm.Id).ToList();
+				if (otherFirms.Count > 0)
+				{
+					var otherFirm = otherFirms[_random.Next(otherFirms.Count)];
+					int amount = _random.Next(10000, 100000) * 100;
+					RecordTransaction(
+						firm.Id,
+						otherFirm.Id,
+						amount,
+						TransactionPurpose.FirmToFirm,
+						$"Business payment to {otherFirm.Name}",
+						RandomDateInMonth());
+				}
+			}
+		}
+	}
+
+	private void ProcessIndividualTransactions()
+	{
+		foreach (var ind in Individuals.ToList())
+		{
+			// Personal expenses (1-5 per individual)
+			int numExpenses = _random.Next(1, 6);
+			for (int i = 0; i < numExpenses; i++)
+			{
+				int amount = _random.Next(50, 2000) * 100;
+				RecordTransaction(
+					ind.Id,
+					null,
+					amount,
+					TransactionPurpose.PersonalExpense,
+					GeneratePersonalExpenseDescription(),
+					RandomDateInMonth());
+			}
+
+			// Occasional personal income from external (10% chance, e.g., freelance)
+			if (_random.NextDouble() < 0.1)
+			{
+				int amount = _random.Next(500, 5000) * 100;
+				RecordTransaction(
+					null,
+					ind.Id,
+					amount,
+					TransactionPurpose.PersonalIncome,
+					"Freelance income",
+					RandomDateInMonth());
+			}
+
+			// Occasional individual-to-individual (5% chance)
+			if (_random.NextDouble() < 0.05)
+			{
+				var others = Individuals.Where(i => i.Id != ind.Id).ToList();
+				if (others.Count > 0)
+				{
+					var other = others[_random.Next(others.Count)];
+					int amount = _random.Next(100, 1000) * 100;
+					RecordTransaction(
+						ind.Id,
+						other.Id,
+						amount,
+						TransactionPurpose.IndividualToIndividual,
+						$"Personal transfer to {other.Name}",
+						RandomDateInMonth());
+				}
+			}
+		}
+	}
+
+	private DateOnly RandomDateInMonth()
+	{
+		int day = _random.Next(1, DateTime.DaysInMonth(CurrentMonth.Year, CurrentMonth.Month) + 1);
+		return new DateOnly(CurrentMonth.Year, CurrentMonth.Month, day);
+	}
+
+	private static readonly string[] ExpenseCategories = { "Office supplies", "Utilities", "Rent", "Equipment", "Insurance", "Marketing", "Travel", "Maintenance", "Professional services", "Software licenses" };
+	private static readonly string[] RevenueCategories = { "Product sales", "Service revenue", "Consulting fees", "Licensing income", "Contract payment", "Project milestone", "Subscription revenue" };
+	private static readonly string[] PersonalExpenseCategories = { "Groceries", "Dining", "Transportation", "Entertainment", "Shopping", "Healthcare", "Utilities", "Subscription" };
+
+	private string GenerateExpenseDescription() => ExpenseCategories[_random.Next(ExpenseCategories.Length)];
+	private string GenerateRevenueDescription() => RevenueCategories[_random.Next(RevenueCategories.Length)];
+	private string GeneratePersonalExpenseDescription() => PersonalExpenseCategories[_random.Next(PersonalExpenseCategories.Length)];
+
+	// Document generation
+	private int _nextDocId = 1;
+
+	private void GenerateMonthlyDocuments()
+	{
+		// Generate bank statements for each individual
+		foreach (var ind in Individuals)
+		{
+			var bank = GetBank(ind.BankId);
+			if (bank == null) continue;
+
+			// Get transactions involving this individual for this month
+			var indTransactions = Transactions
+				.Where(t => t.Date.Year == CurrentMonth.Year && t.Date.Month == CurrentMonth.Month)
+				.Where(t => t.FromEntityId == ind.Id || t.ToEntityId == ind.Id)
+				.OrderBy(t => t.Date)
+				.ToList();
+
+			// Calculate beginning balance (current balance minus net change this month)
+			int netChange = indTransactions.Sum(t =>
+				t.ToEntityId == ind.Id ? t.Amount : -t.Amount);
+			int beginningBalance = ind.Balance - netChange;
+
+			var transactionLines = indTransactions.Select(t => new TransactionLine
+			{
+				Id = $"TL-{_nextDocId++:D6}",
+				Date = t.Date,
+				Description = FormatTransactionDescription(t, ind.Id),
+				Amount = t.ToEntityId == ind.Id ? t.Amount : -t.Amount,
+			}).ToList();
+
+			var statement = new BankStatement
+			{
+				Id = $"BS-{ind.Id}-{CurrentMonth:yyyyMM}",
+				Date = CurrentMonth,
+				AttatchedIndividual = ind,
+				AttatchedBank = bank,
+				AccountNumber = GenerateAccountNumber(ind.Id),
+				BeginningBalance = beginningBalance,
+				Transactions = transactionLines,
+			};
+			Documents.Add(statement);
+		}
+
+		// Generate firm sheets for each firm
+		foreach (var firm in Firms)
+		{
+			// Get transactions involving this firm for this month
+			var firmTransactions = Transactions
+				.Where(t => t.Date.Year == CurrentMonth.Year && t.Date.Month == CurrentMonth.Month)
+				.Where(t => t.FromEntityId == firm.Id || t.ToEntityId == firm.Id)
+				.OrderBy(t => t.Date)
+				.ToList();
+
+			// Calculate beginning balance
+			int netChange = firmTransactions.Sum(t =>
+				t.ToEntityId == firm.Id ? t.Amount : -t.Amount);
+			int beginningAssets = firm.Balance - netChange;
+
+			var transactionLines = firmTransactions.Select(t => new TransactionLine
+			{
+				Id = $"TL-{_nextDocId++:D6}",
+				Date = t.Date,
+				Description = FormatTransactionDescription(t, firm.Id),
+				Amount = t.ToEntityId == firm.Id ? t.Amount : -t.Amount,
+			}).ToList();
+
+			var sheet = new FirmSheet
+			{
+				Id = $"FS-{firm.Id}-{CurrentMonth:yyyyMM}",
+				Date = CurrentMonth,
+				AttatchedFirm = firm,
+				BeginningAssets = beginningAssets,
+				Transactions = transactionLines,
+			};
+			Documents.Add(sheet);
+		}
+	}
+
+	private string FormatTransactionDescription(GroundTruthTransaction tx, string perspectiveEntityId)
+	{
+		// Format description from the perspective of the entity viewing the document
+		bool isIncoming = tx.ToEntityId == perspectiveEntityId;
+		string otherParty;
+
+		if (isIncoming)
+		{
+			if (tx.FromEntityId == null)
+				otherParty = "External";
+			else
+			{
+				var from = GetEntity(tx.FromEntityId);
+				otherParty = from?.Name ?? tx.FromEntityId;
+			}
+		}
+		else
+		{
+			if (tx.ToEntityId == null)
+				otherParty = "External";
+			else
+			{
+				var to = GetEntity(tx.ToEntityId);
+				otherParty = to?.Name ?? tx.ToEntityId;
+			}
+		}
+
+		string direction = isIncoming ? "from" : "to";
+		return $"{tx.Description} ({direction} {otherParty})";
+	}
+
+	private string GenerateAccountNumber(string entityId)
+	{
+		// Generate a deterministic account number from entity ID
+		int hash = entityId.GetHashCode();
+		return $"{Math.Abs(hash) % 10000000000:D10}";
+	}
 
 	// Debug render
 	private static string E(string s) => WebUtility.HtmlEncode(s ?? "");
@@ -226,6 +647,7 @@ public partial class World : Node
 		sb.AppendLine($"<div><strong>Individuals:</strong> {Individuals.Count} ({Individuals.Count(i => i.EmployerId != null)} employed)</div>");
 		sb.AppendLine($"<div><strong>Firms:</strong> {GetNonBankFirms().Count()}</div>");
 		sb.AppendLine($"<div><strong>Banks:</strong> {GetBanks().Count()}</div>");
+		sb.AppendLine($"<div><strong>Transactions:</strong> {Transactions.Count}</div>");
 		sb.AppendLine($"<div><strong>Documents:</strong> {Documents.Count}</div>");
 		sb.AppendLine("</div>");
 
@@ -255,14 +677,16 @@ public partial class World : Node
 
 		// Individuals
 		sb.AppendLine("<div class=\"section\"><h2>Individuals</h2>");
-		sb.AppendLine("<table><thead><tr><th>ID</th><th>Name</th><th>Job</th><th>Employer</th><th class=\"money\">Balance</th></tr></thead><tbody>");
+		sb.AppendLine("<table><thead><tr><th>ID</th><th>Name</th><th>Job</th><th>Employer</th><th>Bank</th><th class=\"money\">Balance</th></tr></thead><tbody>");
 		foreach (var ind in Individuals)
 		{
 			var employer = ind.EmployerId != null ? GetFirm(ind.EmployerId) : null;
+			var bank = ind.BankId != null ? GetBank(ind.BankId) : null;
 			var jobDisplay = ind.Job ?? "<span class=\"muted\">Unemployed</span>";
 			var employerDisplay = employer != null ? E(employer.Name) : "<span class=\"muted\">-</span>";
+			var bankDisplay = bank != null ? E(bank.Name) : "<span class=\"muted\">-</span>";
 			sb.AppendLine($"<tr><td>{E(ind.Id)}</td><td>{E(ind.Name)}</td>");
-			sb.AppendLine($"<td>{jobDisplay}</td><td>{employerDisplay}</td>");
+			sb.AppendLine($"<td>{jobDisplay}</td><td>{employerDisplay}</td><td>{bankDisplay}</td>");
 			sb.AppendLine($"<td class=\"money\">{ind.Balance:N0}</td></tr>");
 		}
 		sb.AppendLine("</tbody></table></div>");
