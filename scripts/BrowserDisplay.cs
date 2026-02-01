@@ -6,7 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 
-public partial class BrowserDisplay(int port_)
+public class BrowserDisplay(int port_)
 {
     public int port = port_;
 
