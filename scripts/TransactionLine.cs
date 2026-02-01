@@ -8,4 +8,14 @@ public record TransactionLine
 	public string Id { get; init; }
 
 
+	public static TransactionLine Example()
+	{
+		return new TransactionLine
+		{
+			Date = new DateOnly(2023, 1, 15),
+			Description = "Office Supplies Purchase",
+			Amount = 2500,
+			Id = "TXN-1001"
+		};
+	}
 }
